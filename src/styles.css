@@ -149,7 +149,11 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 .zoom-control { justify-self: end; border: 1px solid var(--line); border-radius: 7px; padding: 0 2px; }
 .zoom-control span { width: 42px; text-align: center; color: #4d5055; }
 .zoom-control svg { width: 15px; }
-.editor-zoom-control { position: absolute; z-index: 3; top: 40px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; background: rgba(255,255,255,.96); box-shadow: 0 3px 12px rgba(35,38,42,.12); }
+.editor-quick-tools { position: absolute; z-index: 3; top: 40px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.editor-zoom-control { display: flex; align-items: center; background: rgba(255,255,255,.96); box-shadow: 0 3px 12px rgba(35,38,42,.12); }
+.quick-orientation-button { height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 7px; background: rgba(255,255,255,.96); box-shadow: 0 3px 12px rgba(35,38,42,.12); display: flex; align-items: center; gap: 6px; color: #4d5055; font-size: 12px; font-weight: 600; cursor: pointer; }
+.quick-orientation-button:hover { color: var(--coral); border-color: #f1aaa6; background: #fffafa; }
+.quick-orientation-button svg { width: 15px; }
 .preview-button { height: 38px; border: 0; background: var(--coral); color: #fff; border-radius: 7px; padding: 0 14px; display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; cursor: pointer; }
 .preview-button:disabled { opacity: .4; cursor: default; }
 .preview-button svg { width: 16px; }
