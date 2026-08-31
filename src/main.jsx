@@ -30,22 +30,16 @@ function PageThumbnail({ page, index, active, onSelect, onRemove, onDrop, onDrag
   </article>
 }
 
-function EditorCanvas({ page, pageSize, pageLandscape, selectedId, onSelect, onPointerDrag, zoom, onZoomChange, onToggleOrientation, onDropFiles }) {
+function EditorCanvas({ page, pageSize, selectedId, onSelect, onPointerDrag, zoom, onZoomChange, onDropFiles }) {
   const canvasWidth = Math.min(740, window.innerWidth * .5) * zoom / 100
   const canvasHeight = canvasWidth * pageSize.height / pageSize.width
   return <section className="editor">
     <div className="ruler top-ruler"><span>0</span><span>50</span><span>100</span><span>150</span><span>200</span><span>mm</span></div>
     <div className="ruler side-ruler"><span>0</span><span>50</span><span>100</span><span>150</span><span>200</span><span>250</span></div>
-    <div className="editor-quick-tools">
-      <div className="zoom-control editor-zoom-control" aria-label="预览大小">
-        <button aria-label="缩小预览" onClick={() => onZoomChange(Math.max(MIN_ZOOM, zoom - 10))}><Minus /></button>
-        <span>{zoom}%</span>
-        <button aria-label="放大预览" onClick={() => onZoomChange(Math.min(MAX_ZOOM, zoom + 10))}><Plus /></button>
-      </div>
-      <button className="quick-orientation-button" aria-label={pageLandscape ? '切换为纵向' : '切换为横向'} onClick={() => onToggleOrientation(!pageLandscape)}>
-        <FileText className={pageLandscape ? '' : 'rotate-icon'} />
-        {pageLandscape ? '切换纵向' : '切换横向'}
-      </button>
+    <div className="zoom-control editor-zoom-control" aria-label="预览大小">
+      <button aria-label="缩小预览" onClick={() => onZoomChange(Math.max(MIN_ZOOM, zoom - 10))}><Minus /></button>
+      <span>{zoom}%</span>
+      <button aria-label="放大预览" onClick={() => onZoomChange(Math.min(MAX_ZOOM, zoom + 10))}><Plus /></button>
     </div>
     <div className="canvas-wrap" onDragOver={event => event.preventDefault()} onDrop={onDropFiles}>
       <div className="page-canvas" style={{ width: canvasWidth, height: canvasHeight }} onPointerDown={() => onSelect(null)}>
@@ -442,10 +436,10 @@ function App() {
         <div className="rail-caption"><GripVertical /> 拖拽调整页序</div>
         <div className="thumb-list">{pages.map((page, index) => <PageThumbnail key={page.id} page={page} index={index} active={page.id === activePageId} onSelect={() => { setActivePageId(page.id); setSelectedId(page.elements[0]?.id || null) }} onRemove={() => history.commit(current => current.filter(item => item.id !== page.id))} onDragStart={() => setDraggingPageId(page.id)} onDrop={() => { movePage(pages.findIndex(item => item.id === draggingPageId), index); setDraggingPageId(null) }} />)}{!pages.length ? <button className="empty-import" onClick={() => fileInput.current?.click()}><span className="empty-icon"><ImageIcon /></span><strong>导入你的图片</strong><small>支持 JPG、PNG、WebP<br />可一次选择多张</small></button> : null}</div>
       </aside>
-      <EditorCanvas page={activePage} pageSize={pageSize} pageLandscape={pageLandscape} selectedId={selectedId} onSelect={setSelectedId} onPointerDrag={pointerDrag} zoom={zoom} onZoomChange={setZoom} onToggleOrientation={changePageOrientation} onDropFiles={event => { event.preventDefault(); if (event.dataTransfer.files.length) importFiles(event.dataTransfer.files) }} />
+      <EditorCanvas page={activePage} pageSize={pageSize} selectedId={selectedId} onSelect={setSelectedId} onPointerDrag={pointerDrag} zoom={zoom} onZoomChange={setZoom} onDropFiles={event => { event.preventDefault(); if (event.dataTransfer.files.length) importFiles(event.dataTransfer.files) }} />
       <Inspector settings={settings} page={activePage} pageLandscape={pageLandscape} selected={selected} updateElement={updateSelected} alignElement={alignElement} layerElement={layerElement} applyFitMode={applyFitMode} applyAllFitMode={applyAllFitMode} changePagePreset={changePagePreset} changePageOrientation={changePageOrientation} dpi={dpi} />
     </main>
-    <footer className="statusbar"><div><ImageIcon /><strong>{imageCount}</strong> 张图片 · <strong>{pages.length}</strong> 页 · 约 {estimate} MB</div><div className="pagination"><button disabled={activePageIndex <= 0} onClick={() => setActivePageId(pages[activePageIndex - 1]?.id)}><ArrowUp /></button><span>{pages.length ? activePageIndex + 1 : 0}</span><small>/ {pages.length}</small><button disabled={activePageIndex >= pages.length - 1} onClick={() => setActivePageId(pages[activePageIndex + 1]?.id)}><ArrowDown /></button></div></footer>
+    <footer className="statusbar"><div><ImageIcon /><strong>{imageCount}</strong> 张图片 · <strong>{pages.length}</strong> 页 · 约 {estimate} MB</div><div className="pagination"><button disabled={activePageIndex <= 0} onClick={() => setActivePageId(pages[activePageIndex - 1]?.id)}><ArrowUp /></button><span>{pages.length ? activePageIndex + 1 : 0}</span><small>/ {pages.length}</small><button disabled={activePageIndex >= pages.length - 1} onClick={() => setActivePageId(pages[activePageIndex + 1]?.id)}><ArrowDown /></button><button className="footer-orientation-button" aria-label={pageLandscape ? '切换为纵向' : '切换为横向'} onClick={() => changePageOrientation(!pageLandscape)}><FileText className={pageLandscape ? '' : 'rotate-icon'} />{pageLandscape ? '切换纵向' : '切换横向'}</button></div></footer>
     {previewOpen ? <PreviewModal pages={pages} settings={settings} estimate={estimate} onClose={() => setPreviewOpen(false)} onExport={exportPdf} onMovePage={movePage} onMoveImage={moveImage} /> : null}
     {notice ? <div className="toast"><Check />{notice}<button onClick={() => setNotice('')}><X /></button></div> : null}
   </div>
