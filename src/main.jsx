@@ -22,7 +22,7 @@ function PageThumbnail({ page, index, active, onSelect, onRemove, onDrop, onDrag
     <GripVertical className="drag-icon" />
     <span className="page-number">{index + 1}</span>
     <div className="page-thumb-preview">{page.elements.map(element => <img key={element.id} src={element.dataUrl} alt="" />)}</div>
-    <span className="element-count">{page.elements.length}</span>
+    <span className="element-count" title={page.landscape ? '横向页面' : '纵向页面'}>{page.landscape ? '横' : '竖'}·{page.elements.length}</span>
     <button className="trash" title="删除页面" onClick={event => { event.stopPropagation(); onRemove() }}><Trash2 /></button>
   </article>
 }
@@ -52,7 +52,7 @@ function EditorCanvas({ page, pageSize, selectedId, onSelect, onPointerDrag, zoo
   </section>
 }
 
-function Inspector({ settings, setSettings, page, selected, updateElement, alignElement, layerElement, applyFitMode, dpi }) {
+function Inspector({ settings, setSettings, page, pageLandscape, selected, updateElement, alignElement, layerElement, applyFitMode, applyAllFitMode, changePageOrientation, dpi }) {
   const dpiTone = dpi >= 300 ? 'good' : dpi >= 150 ? 'medium' : 'low'
   return <aside className="sidebar inspector">
     <h2>页面设置</h2>
@@ -60,15 +60,20 @@ function Inspector({ settings, setSettings, page, selected, updateElement, align
       <div><label className="field-label">页面尺寸</label><div className="select-wrap"><select value={settings.pagePreset} onChange={event => setSettings(current => ({ ...current, pagePreset: event.target.value }))}>{Object.entries(PAGE_PRESETS).map(([key, preset]) => <option key={key} value={key}>{preset.label}</option>)}</select><ChevronDown /></div></div>
       <div><label className="field-label">边距</label><div className="compact-number"><input type="number" min="0" max="40" value={settings.margin} onChange={event => setSettings(current => ({ ...current, margin: Number(event.target.value) }))} /><span>mm</span></div></div>
     </div>
+    <div className="section-title page-direction-title"><span>当前页方向</span><small>{page ? '仅修改此页' : '新页面默认'}</small></div>
     <div className="segmented two compact-segmented">
-      <button className={!settings.landscape ? 'active' : ''} onClick={() => setSettings(current => ({ ...current, landscape: false }))}><FileText /> 纵向</button>
-      <button className={settings.landscape ? 'active' : ''} onClick={() => setSettings(current => ({ ...current, landscape: true }))}><FileText className="rotate-icon" /> 横向</button>
+      <button className={!pageLandscape ? 'active' : ''} onClick={() => changePageOrientation(false)}><FileText /> 纵向</button>
+      <button className={pageLandscape ? 'active' : ''} onClick={() => changePageOrientation(true)}><FileText className="rotate-icon" /> 横向</button>
     </div>
     <div className="section-title"><span>图像放置</span><button title="重新适配" onClick={() => applyFitMode(settings.fitMode)}><RotateCcw /></button></div>
     <div className="segmented three">
       <button className={settings.fitMode === 'contain' ? 'active' : ''} onClick={() => applyFitMode('contain')}><Maximize /> 适应</button>
       <button className={settings.fitMode === 'cover' ? 'active' : ''} onClick={() => applyFitMode('cover')}><LayoutGrid /> 铺满</button>
       <button className={settings.fitMode === 'original' ? 'active' : ''} onClick={() => applyFitMode('original')}><ZoomIn /> 300DPI</button>
+    </div>
+    <div className="bulk-fit-actions">
+      <button onClick={() => applyAllFitMode('contain')}><Maximize /> 全部适应</button>
+      <button onClick={() => applyAllFitMode('cover')}><LayoutGrid /> 全部铺满</button>
     </div>
     {selected ? <>
       <div className="section-title"><span>选中图片</span><small>{page.elements.findIndex(item => item.id === selected.id) + 1}/{page.elements.length}</small></div>
@@ -85,16 +90,18 @@ function Inspector({ settings, setSettings, page, selected, updateElement, align
   </aside>
 }
 
-function PreviewModal({ pages, pageSize, onClose, onExport, estimate, onMovePage, onMoveImage }) {
+function PreviewModal({ pages, settings, onClose, onExport, estimate, onMovePage, onMoveImage }) {
   const [dragItem, setDragItem] = useState(null)
   return <div className="modal-backdrop" onMouseDown={onClose}>
     <section className="preview-modal" onMouseDown={event => event.stopPropagation()}>
       <header><div><h2>导出前总览</h2><p>{pages.length} 页 · 预计约 {estimate} MB</p></div><button onClick={onClose}><X /></button></header>
-      <div className="preview-pages">{pages.map((page, index) => <article key={page.id} className="preview-page-card" draggable onDragStart={() => setDragItem({ type: 'page', index })} onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); if (dragItem?.type === 'page') onMovePage(dragItem.index, index); setDragItem(null) }}>
-        <div className="mini-page" style={{ aspectRatio: `${pageSize.width}/${pageSize.height}` }}>{page.elements.map(element => <img key={element.id} src={element.dataUrl} alt={element.name} style={{ left: `${element.placement.x / pageSize.width * 100}%`, top: `${element.placement.y / pageSize.height * 100}%`, width: `${element.placement.w / pageSize.width * 100}%`, height: `${element.placement.h / pageSize.height * 100}%`, transform: `rotate(${element.rotation || 0}deg)` }} />)}</div>
-        <span className="preview-page-label"><GripVertical /> 第 {index + 1} 页 · {page.elements.length} 张 <span className="page-order-buttons"><button aria-label={`第 ${index + 1} 页前移`} disabled={index === 0} onClick={event => { event.stopPropagation(); onMovePage(index, index - 1) }}><ChevronLeft /></button><button aria-label={`第 ${index + 1} 页后移`} disabled={index === pages.length - 1} onClick={event => { event.stopPropagation(); onMovePage(index, index + 1) }}><ChevronRight /></button></span></span>
+      <div className="preview-pages">{pages.map((page, index) => {
+        const previewPageSize = getPageSize({ ...settings, landscape: page.landscape ?? settings.landscape })
+        return <article key={page.id} className="preview-page-card" draggable onDragStart={() => setDragItem({ type: 'page', index })} onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); if (dragItem?.type === 'page') onMovePage(dragItem.index, index); setDragItem(null) }}>
+        <div className="mini-page" style={{ aspectRatio: `${previewPageSize.width}/${previewPageSize.height}` }}>{page.elements.map(element => <img key={element.id} src={element.dataUrl} alt={element.name} style={{ left: `${element.placement.x / previewPageSize.width * 100}%`, top: `${element.placement.y / previewPageSize.height * 100}%`, width: `${element.placement.w / previewPageSize.width * 100}%`, height: `${element.placement.h / previewPageSize.height * 100}%`, transform: `rotate(${element.rotation || 0}deg)` }} />)}</div>
+        <span className="preview-page-label"><GripVertical /> 第 {index + 1} 页 · {page.landscape ? '横向' : '纵向'} · {page.elements.length} 张 <span className="page-order-buttons"><button aria-label={`第 ${index + 1} 页前移`} disabled={index === 0} onClick={event => { event.stopPropagation(); onMovePage(index, index - 1) }}><ChevronLeft /></button><button aria-label={`第 ${index + 1} 页后移`} disabled={index === pages.length - 1} onClick={event => { event.stopPropagation(); onMovePage(index, index + 1) }}><ChevronRight /></button></span></span>
         {page.elements.length > 1 ? <div className="preview-order-area"><small>拖动图片，或用箭头调整顺序</small><div className="preview-order-strip">{page.elements.map((element, elementIndex) => <div key={element.id} className="preview-order-item" draggable onDragStart={event => { event.stopPropagation(); setDragItem({ type: 'image', pageId: page.id, index: elementIndex }) }} onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); event.stopPropagation(); if (dragItem?.type === 'image' && dragItem.pageId === page.id) onMoveImage(page.id, dragItem.index, elementIndex); setDragItem(null) }}><GripVertical /><img src={element.dataUrl} alt={element.name} /><span>{elementIndex + 1}</span><div className="preview-order-actions"><button aria-label={`第 ${elementIndex + 1} 张前移`} disabled={elementIndex === 0} onClick={event => { event.stopPropagation(); onMoveImage(page.id, elementIndex, elementIndex - 1) }}><ChevronLeft /></button><button aria-label={`第 ${elementIndex + 1} 张后移`} disabled={elementIndex === page.elements.length - 1} onClick={event => { event.stopPropagation(); onMoveImage(page.id, elementIndex, elementIndex + 1) }}><ChevronRight /></button></div></div>)}</div></div> : null}
-      </article>)}</div>
+      </article>})}</div>
       <footer><span><Check /> 所有内容仅在本地处理</span><button className="primary" onClick={onExport}><Download /> 导出高清 PDF</button></footer>
     </section>
   </div>
@@ -115,9 +122,10 @@ function App() {
   const [storageReady, setStorageReady] = useState(false)
   const [saved, setSaved] = useState(true)
   const fileInput = useRef(null)
-  const pageSize = useMemo(() => getPageSize(settings), [settings])
   const activePageIndex = pages.findIndex(page => page.id === activePageId)
   const activePage = pages[activePageIndex]
+  const pageLandscape = activePage?.landscape ?? settings.landscape
+  const pageSize = useMemo(() => getPageSize({ ...settings, landscape: pageLandscape }), [settings, pageLandscape])
   const selected = activePage?.elements.find(element => element.id === selectedId)
   const dpi = useMemo(() => calculateDpi(selected), [selected])
   const estimate = useMemo(() => estimateMegabytes(pages), [pages])
@@ -128,9 +136,15 @@ function App() {
     loadProject().then(project => {
       if (!mounted) return
       if (project?.pages?.length && project.pages.every(page => Array.isArray(page.elements))) {
-        history.replace(project.pages)
+        const restoredPages = project.pages.map(page => ({
+          ...page,
+          landscape: typeof page.landscape === 'boolean'
+            ? page.landscape
+            : Boolean(page.elements[0] && page.elements[0].pixelWidth > page.elements[0].pixelHeight),
+        }))
+        history.replace(restoredPages)
         setSettings(project.settings || DEFAULT_SETTINGS)
-        setActivePageId(project.pages[0].id)
+        setActivePageId(restoredPages[0].id)
       }
       setStorageReady(true)
     }).catch(() => setStorageReady(true))
@@ -202,20 +216,29 @@ function App() {
     try {
       const elements = await readFiles(fileList)
       if (layoutMode === 'pages') {
-        const newPages = elements.map(element => ({ id: uid(), elements: [element] }))
+        const newPages = elements.map(element => {
+          const landscape = element.pixelWidth > element.pixelHeight
+          const imagePageSize = getPageSize({ ...settings, landscape })
+          return { id: uid(), landscape, elements: [{ ...element, placement: fitElement(element, imagePageSize, settings.margin, settings.fitMode) }] }
+        })
         history.commit(current => [...current, ...newPages])
         setActivePageId(newPages[0].id)
         setSelectedId(elements[0].id)
       } else if (layoutMode === 'grid') {
         const id = uid()
-        const newPage = { id, elements: gridElements(elements, pageSize, settings.margin) }
+        const landscape = settings.landscape
+        const newPageSize = getPageSize({ ...settings, landscape })
+        const newPage = { id, landscape, elements: gridElements(elements, newPageSize, settings.margin) }
         history.commit(current => [...current, newPage])
         setActivePageId(id)
         setSelectedId(newPage.elements[0].id)
       } else {
         const pageId = activePageId || uid()
+        const landscape = activePage?.landscape ?? (elements[0]?.pixelWidth > elements[0]?.pixelHeight)
+        const freePageSize = getPageSize({ ...settings, landscape })
         const positioned = elements.map((element, index) => ({ ...element, placement: { ...element.placement, x: settings.margin + index * 6, y: settings.margin + index * 6 } }))
-        history.commit(current => activePageId ? current.map(page => page.id === activePageId ? { ...page, elements: [...page.elements, ...positioned] } : page) : [...current, { id: pageId, elements: positioned }])
+        const fitted = positioned.map(element => ({ ...element, placement: fitElement(element, freePageSize, settings.margin, settings.fitMode) }))
+        history.commit(current => activePageId ? current.map(page => page.id === activePageId ? { ...page, elements: [...page.elements, ...fitted] } : page) : [...current, { id: pageId, landscape, elements: fitted }])
         setActivePageId(pageId)
         setSelectedId(positioned.at(-1).id)
       }
@@ -233,11 +256,17 @@ function App() {
     if (!pages.length || mode === 'free') return
     const allElements = pages.flatMap(page => page.elements)
     if (mode === 'pages') {
-      const next = allElements.map(element => ({ id: uid(), elements: [{ ...element, placement: fitElement(element, pageSize, settings.margin, settings.fitMode) }] }))
+      const next = allElements.map(element => {
+        const landscape = element.pixelWidth > element.pixelHeight
+        const imagePageSize = getPageSize({ ...settings, landscape })
+        return { id: uid(), landscape, elements: [{ ...element, placement: fitElement(element, imagePageSize, settings.margin, settings.fitMode) }] }
+      })
       history.commit(next)
       setActivePageId(next[0]?.id)
     } else {
-      const page = { id: uid(), elements: gridElements(allElements, pageSize, settings.margin) }
+      const landscape = activePage?.landscape ?? settings.landscape
+      const gridPageSize = getPageSize({ ...settings, landscape })
+      const page = { id: uid(), landscape, elements: gridElements(allElements, gridPageSize, settings.margin) }
       history.commit([page])
       setActivePageId(page.id)
     }
@@ -310,15 +339,47 @@ function App() {
     if (selected) updateSelected({ placement: fitElement(selected, pageSize, settings.margin, mode) })
   }
 
+  function applyAllFitMode(mode) {
+    setSettings(current => ({ ...current, fitMode: mode }))
+    history.commit(current => current.map(page => {
+      const currentPageSize = getPageSize({ ...settings, landscape: page.landscape ?? settings.landscape })
+      if (page.elements.length > 1) {
+        return { ...page, elements: gridElements(page.elements, currentPageSize, settings.margin, mode) }
+      }
+      return { ...page, elements: page.elements.map(element => ({ ...element, placement: fitElement(element, currentPageSize, settings.margin, mode) })) }
+    }))
+    setNotice(mode === 'cover' ? '所有页面已铺满' : '所有页面已适应')
+    setTimeout(() => setNotice(''), 2200)
+  }
+
+  function changePageOrientation(landscape) {
+    if (!activePage) {
+      setSettings(current => ({ ...current, landscape }))
+      return
+    }
+    if (pageLandscape === landscape) return
+    const nextPageSize = getPageSize({ ...settings, landscape })
+    history.commit(current => current.map(page => {
+      if (page.id !== activePageId) return page
+      if (page.elements.length > 1) {
+        return { ...page, landscape, elements: gridElements(page.elements, nextPageSize, settings.margin, settings.fitMode) }
+      }
+      return { ...page, landscape, elements: page.elements.map(element => ({ ...element, placement: fitElement(element, nextPageSize, settings.margin, settings.fitMode) })) }
+    }))
+  }
+
   async function exportPdf() {
     if (!pages.length) return
     setBusy(true)
     try {
       const { jsPDF } = await import('jspdf')
-      const orientation = pageSize.width > pageSize.height ? 'landscape' : 'portrait'
-      const pdf = new jsPDF({ orientation, unit: 'mm', format: [pageSize.width, pageSize.height], compress: false })
+      const firstPageSize = getPageSize({ ...settings, landscape: pages[0].landscape ?? settings.landscape })
+      const firstOrientation = firstPageSize.width > firstPageSize.height ? 'landscape' : 'portrait'
+      const pdf = new jsPDF({ orientation: firstOrientation, unit: 'mm', format: [firstPageSize.width, firstPageSize.height], compress: false })
       pages.forEach((page, pageIndex) => {
-        if (pageIndex) pdf.addPage([pageSize.width, pageSize.height], orientation)
+        const currentPageSize = getPageSize({ ...settings, landscape: page.landscape ?? settings.landscape })
+        const orientation = currentPageSize.width > currentPageSize.height ? 'landscape' : 'portrait'
+        if (pageIndex) pdf.addPage([currentPageSize.width, currentPageSize.height], orientation)
         page.elements.forEach(element => {
           const format = element.type.includes('png') ? 'PNG' : element.type.includes('webp') ? 'WEBP' : 'JPEG'
           const placement = element.placement
@@ -340,7 +401,7 @@ function App() {
   return <div className="app-shell">
     <header className="topbar">
       <div className="brand"><span className="brand-mark" /><strong>原页</strong><span className="divider" /><span>图片转 PDF</span></div>
-      <div className="header-actions"><span className={`save-state ${saved ? 'saved' : ''}`}><Save />{saved ? '已自动保存' : '正在保存'}</span><button className="icon-button" title="撤销 ⌘Z" disabled={!history.canUndo} onClick={history.undo}><Undo2 /></button><button className="icon-button" title="重做 ⇧⌘Z" disabled={!history.canRedo} onClick={history.redo}><Redo2 /></button><span className="divider" /><button className="help-button" title="快捷键：方向键微调，Shift 加速，Delete 删除"><HelpCircle /> 帮助</button></div>
+      <div className="header-actions"><span className={`save-state ${saved ? 'saved' : ''}`}><Save />{saved ? '已自动保存' : '正在保存'}</span><button className="icon-button" title="撤销 ⌘Z" disabled={!history.canUndo} onClick={history.undo}><Undo2 /></button><button className="icon-button" title="重做 ⇧⌘Z" disabled={!history.canRedo} onClick={history.redo}><Redo2 /></button><button className="preview-button header-preview-button" disabled={!pages.length} onClick={() => setPreviewOpen(true)}><Eye />导出总览</button><span className="divider" /><button className="help-button" title="快捷键：方向键微调，Shift 加速，Delete 删除"><HelpCircle /> 帮助</button></div>
     </header>
     <main className="workspace">
       <aside className="sidebar left-sidebar">
@@ -351,10 +412,10 @@ function App() {
         <div className="thumb-list">{pages.map((page, index) => <PageThumbnail key={page.id} page={page} index={index} active={page.id === activePageId} onSelect={() => { setActivePageId(page.id); setSelectedId(page.elements[0]?.id || null) }} onRemove={() => history.commit(current => current.filter(item => item.id !== page.id))} onDragStart={() => setDraggingPageId(page.id)} onDrop={() => { movePage(pages.findIndex(item => item.id === draggingPageId), index); setDraggingPageId(null) }} />)}{!pages.length ? <button className="empty-import" onClick={() => fileInput.current?.click()}><span className="empty-icon"><ImageIcon /></span><strong>导入你的图片</strong><small>支持 JPG、PNG、WebP<br />可一次选择多张</small></button> : null}</div>
       </aside>
       <EditorCanvas page={activePage} pageSize={pageSize} selectedId={selectedId} onSelect={setSelectedId} onPointerDrag={pointerDrag} zoom={zoom} onDropFiles={event => { event.preventDefault(); if (event.dataTransfer.files.length) importFiles(event.dataTransfer.files) }} />
-      <Inspector settings={settings} setSettings={setSettings} page={activePage} selected={selected} updateElement={updateSelected} alignElement={alignElement} layerElement={layerElement} applyFitMode={applyFitMode} dpi={dpi} />
+      <Inspector settings={settings} setSettings={setSettings} page={activePage} pageLandscape={pageLandscape} selected={selected} updateElement={updateSelected} alignElement={alignElement} layerElement={layerElement} applyFitMode={applyFitMode} applyAllFitMode={applyAllFitMode} changePageOrientation={changePageOrientation} dpi={dpi} />
     </main>
-    <footer className="statusbar"><div><ImageIcon /><strong>{imageCount}</strong> 张图片 · <strong>{pages.length}</strong> 页 · 约 {estimate} MB</div><div className="pagination"><button disabled={activePageIndex <= 0} onClick={() => setActivePageId(pages[activePageIndex - 1]?.id)}><ArrowUp /></button><span>{pages.length ? activePageIndex + 1 : 0}</span><small>/ {pages.length}</small><button disabled={activePageIndex >= pages.length - 1} onClick={() => setActivePageId(pages[activePageIndex + 1]?.id)}><ArrowDown /></button></div><div className="status-actions"><div className="zoom-control"><button onClick={() => setZoom(Math.max(35, zoom - 10))}><Minus /></button><span>{zoom}%</span><button onClick={() => setZoom(Math.min(110, zoom + 10))}><Plus /></button></div><button className="preview-button" disabled={!pages.length} onClick={() => setPreviewOpen(true)}><Eye />导出总览</button></div></footer>
-    {previewOpen ? <PreviewModal pages={pages} pageSize={pageSize} estimate={estimate} onClose={() => setPreviewOpen(false)} onExport={exportPdf} onMovePage={movePage} onMoveImage={moveImage} /> : null}
+    <footer className="statusbar"><div><ImageIcon /><strong>{imageCount}</strong> 张图片 · <strong>{pages.length}</strong> 页 · 约 {estimate} MB</div><div className="pagination"><button disabled={activePageIndex <= 0} onClick={() => setActivePageId(pages[activePageIndex - 1]?.id)}><ArrowUp /></button><span>{pages.length ? activePageIndex + 1 : 0}</span><small>/ {pages.length}</small><button disabled={activePageIndex >= pages.length - 1} onClick={() => setActivePageId(pages[activePageIndex + 1]?.id)}><ArrowDown /></button></div><div className="status-actions"><div className="zoom-control"><button onClick={() => setZoom(Math.max(35, zoom - 10))}><Minus /></button><span>{zoom}%</span><button onClick={() => setZoom(Math.min(110, zoom + 10))}><Plus /></button></div></div></footer>
+    {previewOpen ? <PreviewModal pages={pages} settings={settings} estimate={estimate} onClose={() => setPreviewOpen(false)} onExport={exportPdf} onMovePage={movePage} onMoveImage={moveImage} /> : null}
     {notice ? <div className="toast"><Check />{notice}<button onClick={() => setNotice('')}><X /></button></div> : null}
   </div>
 }

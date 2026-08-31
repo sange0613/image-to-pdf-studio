@@ -39,7 +39,7 @@ export function fitElement(element, pageSize, margin, mode = 'contain') {
   return fitInBox(element, { x: margin, y: margin, width: pageSize.width - margin * 2, height: pageSize.height - margin * 2 }, mode)
 }
 
-export function gridElements(elements, pageSize, margin) {
+export function gridElements(elements, pageSize, margin, mode = 'contain') {
   if (!elements.length) return []
   const columns = Math.ceil(Math.sqrt(elements.length))
   const rows = Math.ceil(elements.length / columns)
@@ -49,7 +49,7 @@ export function gridElements(elements, pageSize, margin) {
   return elements.map((element, index) => {
     const column = index % columns
     const row = Math.floor(index / columns)
-    return { ...element, rotation: 0, placement: fitInBox(element, { x: margin + column * (cellWidth + gap), y: margin + row * (cellHeight + gap), width: cellWidth, height: cellHeight }) }
+    return { ...element, rotation: 0, placement: fitInBox(element, { x: margin + column * (cellWidth + gap), y: margin + row * (cellHeight + gap), width: cellWidth, height: cellHeight }, mode) }
   })
 }
 
