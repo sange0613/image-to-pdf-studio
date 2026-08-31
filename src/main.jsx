@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import {
   AlignCenterHorizontal, AlignCenterVertical, ArrowDown, ArrowUp, BringToFront,
   Check, ChevronDown, ChevronLeft, ChevronRight, Download, Eye, FileImage, FileText, GripVertical,
-  HelpCircle, Image as ImageIcon, ImagePlus, LayoutGrid, Maximize, Minus,
+  Image as ImageIcon, ImagePlus, LayoutGrid, Maximize, Minus,
   Move, Plus, Redo2, RotateCcw, RotateCw, Save, SendToBack, Trash2, Undo2,
   X, ZoomIn,
 } from 'lucide-react'
@@ -426,7 +426,7 @@ function App() {
   return <div className="app-shell">
     <header className="topbar">
       <div className="brand"><span className="brand-mark" /><strong>戌無营造</strong><span className="divider" /><span>图片转PDF</span></div>
-      <div className="header-actions"><span className={`save-state ${saved ? 'saved' : ''}`}><Save />{saved ? '已自动保存' : '正在保存'}</span><button className="icon-button" title="撤销 ⌘Z" disabled={!history.canUndo} onClick={history.undo}><Undo2 /></button><button className="icon-button" title="重做 ⇧⌘Z" disabled={!history.canRedo} onClick={history.redo}><Redo2 /></button><button className="preview-button header-preview-button" disabled={!pages.length} onClick={() => setPreviewOpen(true)}><Eye />导出总览</button><span className="divider" /><button className="help-button" title="快捷键：方向键微调，Shift 加速，Delete 删除"><HelpCircle /> 帮助</button></div>
+      <div className="header-actions"><span className={`save-state ${saved ? 'saved' : ''}`}><Save />{saved ? '已自动保存' : '正在保存'}</span><button className="icon-button" title="撤销 ⌘Z" disabled={!history.canUndo} onClick={history.undo}><Undo2 /></button><button className="icon-button" title="重做 ⇧⌘Z" disabled={!history.canRedo} onClick={history.redo}><Redo2 /></button><button className="preview-button header-preview-button" disabled={!pages.length} onClick={() => setPreviewOpen(true)}><Eye />导出总览</button></div>
     </header>
     <main className="workspace">
       <aside className="sidebar left-sidebar">
