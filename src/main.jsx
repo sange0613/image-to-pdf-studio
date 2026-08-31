@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import { useHistory } from './hooks/useHistory'
 import {
-  PAGE_PRESET_GROUPS, PAGE_PRESETS, calculateDpi, estimateMegabytes, fitElement, getImageSize,
+  CROP_FOCUS_OPTIONS, PAGE_PRESET_GROUPS, PAGE_PRESETS, calculateDpi, estimateMegabytes, fitElement, getImageSize,
   getPageSize, gridElements, loadProject, saveProject, uid,
 } from './lib/project'
 import './styles.css'
@@ -19,13 +19,16 @@ const IMAGE_TYPES = /image\/(jpeg|png|webp)/
 const MIN_ZOOM = 35
 const MAX_ZOOM = 200
 const DEFAULT_ZOOM = 100
+const PRESET_SHORT_LABELS = { photo4x6: '4×6', photo5x7: '5×7', square: '方形', screen16x9: '16:9', screen4x3: '4:3' }
+const getPresetName = pagePreset => PRESET_SHORT_LABELS[pagePreset] || (PAGE_PRESETS[pagePreset]?.label || PAGE_PRESETS.a4.label).split(' · ')[0]
 
 function PageThumbnail({ page, index, active, onSelect, onRemove, onDrop, onDragStart }) {
+  const presetName = getPresetName(page.pagePreset)
   return <article className={`thumb-row ${active ? 'selected' : ''}`} draggable onDragStart={onDragStart} onDragOver={event => event.preventDefault()} onDrop={onDrop} onClick={onSelect}>
     <GripVertical className="drag-icon" />
     <span className="page-number">{index + 1}</span>
     <div className="page-thumb-preview">{page.elements.map(element => <img key={element.id} src={element.dataUrl} alt="" />)}</div>
-    <span className="element-count" title={page.landscape ? '横向页面' : '纵向页面'}>{page.landscape ? '横' : '竖'}·{page.elements.length}</span>
+    <span className="element-count" title={`${presetName} · ${page.landscape ? '横向' : '纵向'} · ${page.elements.length} 张`}>{presetName}·{page.landscape ? '横' : '竖'}</span>
     <button className="trash" title="删除页面" onClick={event => { event.stopPropagation(); onRemove() }}><Trash2 /></button>
   </article>
 }
@@ -60,12 +63,12 @@ function EditorCanvas({ page, pageSize, selectedId, onSelect, onPointerDrag, zoo
   </section>
 }
 
-function Inspector({ settings, page, pageLandscape, selected, updateElement, alignElement, layerElement, applyFitMode, applyAllFitMode, changePagePreset, changePageOrientation, dpi }) {
+function Inspector({ settings, setSettings, currentPagePreset, page, pageLandscape, selected, updateElement, alignElement, layerElement, applyFitMode, applyAllFitMode, changeCropFocus, changePagePreset, changePageOrientation, dpi }) {
   const dpiTone = dpi >= 300 ? 'good' : dpi >= 150 ? 'medium' : 'low'
   return <aside className="sidebar inspector">
     <h2>页面设置</h2>
     <div className="settings-row">
-      <div><label className="field-label">页面尺寸</label><div className="select-wrap"><select value={settings.pagePreset} onChange={event => changePagePreset(event.target.value)}>{PAGE_PRESET_GROUPS.map(group => <optgroup key={group} label={group}>{Object.entries(PAGE_PRESETS).filter(([, preset]) => preset.group === group).map(([key, preset]) => <option key={key} value={key}>{preset.label}</option>)}</optgroup>)}</select><ChevronDown /></div></div>
+      <div><label className="field-label">{page ? '当前页尺寸' : '新页面尺寸'}</label><div className="select-wrap"><select value={currentPagePreset} onChange={event => changePagePreset(event.target.value)}>{PAGE_PRESET_GROUPS.map(group => <optgroup key={group} label={group}>{Object.entries(PAGE_PRESETS).filter(([, preset]) => preset.group === group).map(([key, preset]) => <option key={key} value={key}>{preset.label}</option>)}</optgroup>)}</select><ChevronDown /></div></div>
       <div><label className="field-label">边距</label><div className="compact-number"><input type="number" min="0" max="40" value={settings.margin} onChange={event => setSettings(current => ({ ...current, margin: Number(event.target.value) }))} /><span>mm</span></div></div>
     </div>
     <div className="section-title page-direction-title"><span>当前页方向</span><small>{page ? '仅修改此页' : '新页面默认'}</small></div>
@@ -83,6 +86,10 @@ function Inspector({ settings, page, pageLandscape, selected, updateElement, ali
       <button onClick={() => applyAllFitMode('contain')}><Maximize /> 全部适应</button>
       <button onClick={() => applyAllFitMode('cover')}><LayoutGrid /> 全部铺满</button>
     </div>
+    {selected && page.elements.length === 1 && settings.fitMode === 'cover' ? <>
+      <div className="section-title crop-focus-title"><span>铺满裁切焦点</span><small>保留画面重点</small></div>
+      <div className="crop-focus-grid">{Object.entries(CROP_FOCUS_OPTIONS).map(([key, option]) => <button key={key} className={(selected.cropFocus || 'center') === key ? 'active' : ''} onClick={() => changeCropFocus(key)}>{option.label}</button>)}</div>
+    </> : null}
     {selected ? <>
       <div className="section-title"><span>选中图片</span><small>{page.elements.findIndex(item => item.id === selected.id) + 1}/{page.elements.length}</small></div>
       <div className="object-tools">
@@ -104,10 +111,11 @@ function PreviewModal({ pages, settings, onClose, onExport, estimate, onMovePage
     <section className="preview-modal" onMouseDown={event => event.stopPropagation()}>
       <header><div><h2>导出前总览</h2><p>{pages.length} 页 · 预计约 {estimate} MB</p></div><button onClick={onClose}><X /></button></header>
       <div className="preview-pages">{pages.map((page, index) => {
-        const previewPageSize = getPageSize({ ...settings, landscape: page.landscape ?? settings.landscape })
+        const previewPageSize = getPageSize({ ...settings, pagePreset: page.pagePreset ?? settings.pagePreset, landscape: page.landscape ?? settings.landscape })
+        const presetName = getPresetName(page.pagePreset ?? settings.pagePreset)
         return <article key={page.id} className="preview-page-card" draggable onDragStart={() => setDragItem({ type: 'page', index })} onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); if (dragItem?.type === 'page') onMovePage(dragItem.index, index); setDragItem(null) }}>
         <div className="mini-page" style={{ aspectRatio: `${previewPageSize.width}/${previewPageSize.height}` }}>{page.elements.map(element => <img key={element.id} src={element.dataUrl} alt={element.name} style={{ left: `${element.placement.x / previewPageSize.width * 100}%`, top: `${element.placement.y / previewPageSize.height * 100}%`, width: `${element.placement.w / previewPageSize.width * 100}%`, height: `${element.placement.h / previewPageSize.height * 100}%`, transform: `rotate(${element.rotation || 0}deg)` }} />)}</div>
-        <span className="preview-page-label"><GripVertical /> 第 {index + 1} 页 · {page.landscape ? '横向' : '纵向'} · {page.elements.length} 张 <span className="page-order-buttons"><button aria-label={`第 ${index + 1} 页前移`} disabled={index === 0} onClick={event => { event.stopPropagation(); onMovePage(index, index - 1) }}><ChevronLeft /></button><button aria-label={`第 ${index + 1} 页后移`} disabled={index === pages.length - 1} onClick={event => { event.stopPropagation(); onMovePage(index, index + 1) }}><ChevronRight /></button></span></span>
+        <span className="preview-page-label"><GripVertical /> 第 {index + 1} 页 · {presetName} · {page.landscape ? '横向' : '纵向'} · {page.elements.length} 张 <span className="page-order-buttons"><button aria-label={`第 ${index + 1} 页前移`} disabled={index === 0} onClick={event => { event.stopPropagation(); onMovePage(index, index - 1) }}><ChevronLeft /></button><button aria-label={`第 ${index + 1} 页后移`} disabled={index === pages.length - 1} onClick={event => { event.stopPropagation(); onMovePage(index, index + 1) }}><ChevronRight /></button></span></span>
         {page.elements.length > 1 ? <div className="preview-order-area"><small>拖动图片，或用箭头调整顺序</small><div className="preview-order-strip">{page.elements.map((element, elementIndex) => <div key={element.id} className="preview-order-item" draggable onDragStart={event => { event.stopPropagation(); setDragItem({ type: 'image', pageId: page.id, index: elementIndex }) }} onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); event.stopPropagation(); if (dragItem?.type === 'image' && dragItem.pageId === page.id) onMoveImage(page.id, dragItem.index, elementIndex); setDragItem(null) }}><GripVertical /><img src={element.dataUrl} alt={element.name} /><span>{elementIndex + 1}</span><div className="preview-order-actions"><button aria-label={`第 ${elementIndex + 1} 张前移`} disabled={elementIndex === 0} onClick={event => { event.stopPropagation(); onMoveImage(page.id, elementIndex, elementIndex - 1) }}><ChevronLeft /></button><button aria-label={`第 ${elementIndex + 1} 张后移`} disabled={elementIndex === page.elements.length - 1} onClick={event => { event.stopPropagation(); onMoveImage(page.id, elementIndex, elementIndex + 1) }}><ChevronRight /></button></div></div>)}</div></div> : null}
       </article>})}</div>
       <footer><span><Check /> 所有内容仅在本地处理</span><button className="primary" onClick={onExport}><Download /> 导出高清 PDF</button></footer>
@@ -133,7 +141,8 @@ function App() {
   const activePageIndex = pages.findIndex(page => page.id === activePageId)
   const activePage = pages[activePageIndex]
   const pageLandscape = activePage?.landscape ?? settings.landscape
-  const pageSize = useMemo(() => getPageSize({ ...settings, landscape: pageLandscape }), [settings, pageLandscape])
+  const currentPagePreset = activePage?.pagePreset ?? settings.pagePreset
+  const pageSize = useMemo(() => getPageSize({ ...settings, pagePreset: currentPagePreset, landscape: pageLandscape }), [settings, currentPagePreset, pageLandscape])
   const selected = activePage?.elements.find(element => element.id === selectedId)
   const dpi = useMemo(() => calculateDpi(selected), [selected])
   const estimate = useMemo(() => estimateMegabytes(pages), [pages])
@@ -144,14 +153,17 @@ function App() {
     loadProject().then(project => {
       if (!mounted) return
       if (project?.pages?.length && project.pages.every(page => Array.isArray(page.elements))) {
+        const restoredSettings = { ...DEFAULT_SETTINGS, ...(project.settings || {}) }
         const restoredPages = project.pages.map(page => ({
           ...page,
+          pagePreset: PAGE_PRESETS[page.pagePreset] ? page.pagePreset : restoredSettings.pagePreset,
           landscape: typeof page.landscape === 'boolean'
             ? page.landscape
             : Boolean(page.elements[0] && page.elements[0].pixelWidth > page.elements[0].pixelHeight),
+          elements: page.elements.map(element => ({ ...element, cropFocus: element.cropFocus || 'center' })),
         }))
         history.replace(restoredPages)
-        setSettings(project.settings || DEFAULT_SETTINGS)
+        setSettings(restoredSettings)
         setActivePageId(restoredPages[0].id)
       }
       setStorageReady(true)
@@ -214,7 +226,7 @@ function App() {
         reader.readAsDataURL(file)
       })
       const size = await getImageSize(dataUrl)
-      const base = { id: uid(), name: file.name, dataUrl, pixelWidth: size.width, pixelHeight: size.height, type: file.type, rotation: 0 }
+      const base = { id: uid(), name: file.name, dataUrl, pixelWidth: size.width, pixelHeight: size.height, type: file.type, rotation: 0, cropFocus: 'center' }
       return { ...base, placement: fitElement(base, pageSize, settings.margin, settings.fitMode) }
     }))
   }
@@ -227,7 +239,7 @@ function App() {
         const newPages = elements.map(element => {
           const landscape = element.pixelWidth > element.pixelHeight
           const imagePageSize = getPageSize({ ...settings, landscape })
-          return { id: uid(), landscape, elements: [{ ...element, placement: fitElement(element, imagePageSize, settings.margin, settings.fitMode) }] }
+          return { id: uid(), pagePreset: settings.pagePreset, landscape, elements: [{ ...element, placement: fitElement(element, imagePageSize, settings.margin, settings.fitMode) }] }
         })
         history.commit(current => [...current, ...newPages])
         setActivePageId(newPages[0].id)
@@ -236,17 +248,17 @@ function App() {
         const id = uid()
         const landscape = settings.landscape
         const newPageSize = getPageSize({ ...settings, landscape })
-        const newPage = { id, landscape, elements: gridElements(elements, newPageSize, settings.margin) }
+        const newPage = { id, pagePreset: settings.pagePreset, landscape, elements: gridElements(elements, newPageSize, settings.margin) }
         history.commit(current => [...current, newPage])
         setActivePageId(id)
         setSelectedId(newPage.elements[0].id)
       } else {
         const pageId = activePageId || uid()
         const landscape = activePage?.landscape ?? (elements[0]?.pixelWidth > elements[0]?.pixelHeight)
-        const freePageSize = getPageSize({ ...settings, landscape })
+        const freePageSize = getPageSize({ ...settings, pagePreset: activePage?.pagePreset ?? settings.pagePreset, landscape })
         const positioned = elements.map((element, index) => ({ ...element, placement: { ...element.placement, x: settings.margin + index * 6, y: settings.margin + index * 6 } }))
         const fitted = positioned.map(element => ({ ...element, placement: fitElement(element, freePageSize, settings.margin, settings.fitMode) }))
-        history.commit(current => activePageId ? current.map(page => page.id === activePageId ? { ...page, elements: [...page.elements, ...fitted] } : page) : [...current, { id: pageId, landscape, elements: fitted }])
+        history.commit(current => activePageId ? current.map(page => page.id === activePageId ? { ...page, elements: [...page.elements, ...fitted] } : page) : [...current, { id: pageId, pagePreset: settings.pagePreset, landscape, elements: fitted }])
         setActivePageId(pageId)
         setSelectedId(positioned.at(-1).id)
       }
@@ -267,14 +279,14 @@ function App() {
       const next = allElements.map(element => {
         const landscape = element.pixelWidth > element.pixelHeight
         const imagePageSize = getPageSize({ ...settings, landscape })
-        return { id: uid(), landscape, elements: [{ ...element, placement: fitElement(element, imagePageSize, settings.margin, settings.fitMode) }] }
+        return { id: uid(), pagePreset: settings.pagePreset, landscape, elements: [{ ...element, placement: fitElement(element, imagePageSize, settings.margin, settings.fitMode) }] }
       })
       history.commit(next)
       setActivePageId(next[0]?.id)
     } else {
       const landscape = activePage?.landscape ?? settings.landscape
-      const gridPageSize = getPageSize({ ...settings, landscape })
-      const page = { id: uid(), landscape, elements: gridElements(allElements, gridPageSize, settings.margin) }
+      const gridPageSize = getPageSize({ ...settings, pagePreset: activePage?.pagePreset ?? settings.pagePreset, landscape })
+      const page = { id: uid(), pagePreset: activePage?.pagePreset ?? settings.pagePreset, landscape, elements: gridElements(allElements, gridPageSize, settings.margin) }
       history.commit([page])
       setActivePageId(page.id)
     }
@@ -344,13 +356,13 @@ function App() {
 
   function applyFitMode(mode) {
     setSettings(current => ({ ...current, fitMode: mode }))
-    if (selected) updateSelected({ placement: fitElement(selected, pageSize, settings.margin, mode) })
+    if (selected) updateSelected({ placement: fitElement(selected, pageSize, settings.margin, mode, selected.cropFocus) })
   }
 
   function applyAllFitMode(mode) {
     setSettings(current => ({ ...current, fitMode: mode }))
     history.commit(current => current.map(page => {
-      const currentPageSize = getPageSize({ ...settings, landscape: page.landscape ?? settings.landscape })
+      const currentPageSize = getPageSize({ ...settings, pagePreset: page.pagePreset ?? settings.pagePreset, landscape: page.landscape ?? settings.landscape })
       if (page.elements.length > 1) {
         return { ...page, elements: gridElements(page.elements, currentPageSize, settings.margin, mode) }
       }
@@ -366,7 +378,7 @@ function App() {
       return
     }
     if (pageLandscape === landscape) return
-    const nextPageSize = getPageSize({ ...settings, landscape })
+    const nextPageSize = getPageSize({ ...settings, pagePreset: currentPagePreset, landscape })
     history.commit(current => current.map(page => {
       if (page.id !== activePageId) return page
       if (page.elements.length > 1) {
@@ -377,20 +389,25 @@ function App() {
   }
 
   function changePagePreset(pagePreset) {
-    if (pagePreset === settings.pagePreset || !PAGE_PRESETS[pagePreset]) return
-    const nextSettings = { ...settings, pagePreset }
-    setSettings(nextSettings)
-    if (pages.length) {
+    if (pagePreset === currentPagePreset || !PAGE_PRESETS[pagePreset]) return
+    setSettings(current => ({ ...current, pagePreset }))
+    if (activePage) {
+      const nextPageSize = getPageSize({ ...settings, pagePreset, landscape: pageLandscape })
       history.commit(current => current.map(page => {
-        const nextPageSize = getPageSize({ ...nextSettings, landscape: page.landscape ?? nextSettings.landscape })
+        if (page.id !== activePageId) return page
         if (page.elements.length > 1) {
-          return { ...page, elements: gridElements(page.elements, nextPageSize, nextSettings.margin, nextSettings.fitMode) }
+          return { ...page, pagePreset, elements: gridElements(page.elements, nextPageSize, settings.margin, settings.fitMode) }
         }
-        return { ...page, elements: page.elements.map(element => ({ ...element, placement: fitElement(element, nextPageSize, nextSettings.margin, nextSettings.fitMode) })) }
+        return { ...page, pagePreset, elements: page.elements.map(element => ({ ...element, placement: fitElement(element, nextPageSize, settings.margin, settings.fitMode, element.cropFocus) })) }
       }))
     }
     setNotice(`页面尺寸已切换为 ${PAGE_PRESETS[pagePreset].label.split(' · ')[0]}`)
     setTimeout(() => setNotice(''), 2200)
+  }
+
+  function changeCropFocus(cropFocus) {
+    if (!selected || !CROP_FOCUS_OPTIONS[cropFocus]) return
+    updateSelected({ cropFocus, placement: fitElement(selected, pageSize, settings.margin, 'cover', cropFocus) })
   }
 
   async function exportPdf() {
@@ -398,11 +415,11 @@ function App() {
     setBusy(true)
     try {
       const { jsPDF } = await import('jspdf')
-      const firstPageSize = getPageSize({ ...settings, landscape: pages[0].landscape ?? settings.landscape })
+      const firstPageSize = getPageSize({ ...settings, pagePreset: pages[0].pagePreset ?? settings.pagePreset, landscape: pages[0].landscape ?? settings.landscape })
       const firstOrientation = firstPageSize.width > firstPageSize.height ? 'landscape' : 'portrait'
       const pdf = new jsPDF({ orientation: firstOrientation, unit: 'mm', format: [firstPageSize.width, firstPageSize.height], compress: false })
       pages.forEach((page, pageIndex) => {
-        const currentPageSize = getPageSize({ ...settings, landscape: page.landscape ?? settings.landscape })
+        const currentPageSize = getPageSize({ ...settings, pagePreset: page.pagePreset ?? settings.pagePreset, landscape: page.landscape ?? settings.landscape })
         const orientation = currentPageSize.width > currentPageSize.height ? 'landscape' : 'portrait'
         if (pageIndex) pdf.addPage([currentPageSize.width, currentPageSize.height], orientation)
         page.elements.forEach(element => {
@@ -437,7 +454,7 @@ function App() {
         <div className="thumb-list">{pages.map((page, index) => <PageThumbnail key={page.id} page={page} index={index} active={page.id === activePageId} onSelect={() => { setActivePageId(page.id); setSelectedId(page.elements[0]?.id || null) }} onRemove={() => history.commit(current => current.filter(item => item.id !== page.id))} onDragStart={() => setDraggingPageId(page.id)} onDrop={() => { movePage(pages.findIndex(item => item.id === draggingPageId), index); setDraggingPageId(null) }} />)}{!pages.length ? <button className="empty-import" onClick={() => fileInput.current?.click()}><span className="empty-icon"><ImageIcon /></span><strong>导入你的图片</strong><small>支持 JPG、PNG、WebP<br />可一次选择多张</small></button> : null}</div>
       </aside>
       <EditorCanvas page={activePage} pageSize={pageSize} selectedId={selectedId} onSelect={setSelectedId} onPointerDrag={pointerDrag} zoom={zoom} onZoomChange={setZoom} onDropFiles={event => { event.preventDefault(); if (event.dataTransfer.files.length) importFiles(event.dataTransfer.files) }} />
-      <Inspector settings={settings} page={activePage} pageLandscape={pageLandscape} selected={selected} updateElement={updateSelected} alignElement={alignElement} layerElement={layerElement} applyFitMode={applyFitMode} applyAllFitMode={applyAllFitMode} changePagePreset={changePagePreset} changePageOrientation={changePageOrientation} dpi={dpi} />
+      <Inspector settings={settings} setSettings={setSettings} currentPagePreset={currentPagePreset} page={activePage} pageLandscape={pageLandscape} selected={selected} updateElement={updateSelected} alignElement={alignElement} layerElement={layerElement} applyFitMode={applyFitMode} applyAllFitMode={applyAllFitMode} changeCropFocus={changeCropFocus} changePagePreset={changePagePreset} changePageOrientation={changePageOrientation} dpi={dpi} />
     </main>
     <footer className="statusbar"><div><ImageIcon /><strong>{imageCount}</strong> 张图片 · <strong>{pages.length}</strong> 页 · 约 {estimate} MB</div><div className="pagination"><button disabled={activePageIndex <= 0} onClick={() => setActivePageId(pages[activePageIndex - 1]?.id)}><ArrowUp /></button><span>{pages.length ? activePageIndex + 1 : 0}</span><small>/ {pages.length}</small><button disabled={activePageIndex >= pages.length - 1} onClick={() => setActivePageId(pages[activePageIndex + 1]?.id)}><ArrowDown /></button><button className="footer-orientation-button" aria-label={pageLandscape ? '切换为纵向' : '切换为横向'} onClick={() => changePageOrientation(!pageLandscape)}><FileText className={pageLandscape ? '' : 'rotate-icon'} />{pageLandscape ? '切换纵向' : '切换横向'}</button></div></footer>
     {previewOpen ? <PreviewModal pages={pages} settings={settings} estimate={estimate} onClose={() => setPreviewOpen(false)} onExport={exportPdf} onMovePage={movePage} onMoveImage={moveImage} /> : null}

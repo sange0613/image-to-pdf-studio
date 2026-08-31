@@ -49,14 +49,14 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 .rail-caption { display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--muted); font-size: 13px; padding: 19px 0 15px; }
 .rail-caption svg { width: 16px; }
 .thumb-list { min-height: 0; overflow: auto; padding: 1px 3px 28px 1px; }
-.thumb-row { height: 104px; border: 1px solid var(--line); border-radius: 9px; margin-bottom: 10px; display: grid; grid-template-columns: 16px 20px 1fr 30px 26px; gap: 6px; align-items: center; padding: 9px; cursor: pointer; background: #fff; transition: .15s ease; }
+.thumb-row { height: 104px; border: 1px solid var(--line); border-radius: 9px; margin-bottom: 10px; display: grid; grid-template-columns: 16px 20px 1fr 48px 26px; gap: 6px; align-items: center; padding: 9px; cursor: pointer; background: #fff; transition: .15s ease; }
 .thumb-row:hover { border-color: #b8bbc0; }
 .thumb-row.selected { border-color: var(--coral); box-shadow: 0 0 0 1px rgba(244,81,73,.08); }
 .drag-icon { width: 16px; color: #989ca2; cursor: grab; }
 .page-number { font-weight: 700; font-size: 16px; text-align: center; }
 .page-thumb-preview { width: 100%; height: 76px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 2px; padding: 3px; background: #f4f4f4; border-radius: 3px; overflow: hidden; }
 .page-thumb-preview img { width: 100%; height: 100%; min-height: 0; object-fit: contain; background: #eee; border-radius: 2px; }
-.element-count { min-width: 30px; height: 18px; display: grid; place-items: center; border-radius: 9px; background: #eef0f2; color: #6b7076; font-size: 9px; }
+.element-count { min-width: 48px; height: 20px; padding: 0 5px; display: grid; place-items: center; border-radius: 10px; background: #eef0f2; color: #5f646a; font-size: 9px; font-weight: 700; white-space: nowrap; }
 .trash { border: 0; background: none; color: #969aa0; width: 28px; height: 32px; padding: 4px; cursor: pointer; border-radius: 6px; }
 .trash:hover { color: var(--coral); background: #fff2f1; }
 .trash svg { width: 19px; }
@@ -108,6 +108,11 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 .bulk-fit-actions button { height: 34px; border: 1px solid #d8dadd; background: #f7f8f8; border-radius: 7px; display: flex; align-items: center; justify-content: center; gap: 5px; color: #555a60; font-size: 11px; font-weight: 600; cursor: pointer; }
 .bulk-fit-actions button:hover { border-color: var(--coral); color: var(--coral); background: #fffafa; }
 .bulk-fit-actions svg { width: 14px; }
+.crop-focus-title { margin-top: 15px; }
+.crop-focus-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
+.crop-focus-grid button { height: 32px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: #64696f; font-size: 10px; font-weight: 600; cursor: pointer; }
+.crop-focus-grid button:hover { color: var(--coral); border-color: #f1aaa6; background: #fffafa; }
+.crop-focus-grid button.active { color: var(--coral); border-color: var(--coral); background: #fffafa; }
 .object-tools { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
 .object-tools button { height: 36px; border: 1px solid var(--line); background: #fff; border-radius: 7px; display: grid; place-items: center; cursor: pointer; color: #5d6268; }
 .object-tools button:hover { color: var(--coral); border-color: #f1aaa6; background: #fffafa; }

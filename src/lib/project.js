@@ -15,6 +15,14 @@ export const PAGE_PRESETS = {
 
 export const PAGE_PRESET_GROUPS = [...new Set(Object.values(PAGE_PRESETS).map(preset => preset.group))]
 
+export const CROP_FOCUS_OPTIONS = {
+  center: { label: '居中', x: 0.5, y: 0.5 },
+  top: { label: '顶部', x: 0.5, y: 0 },
+  bottom: { label: '底部', x: 0.5, y: 1 },
+  left: { label: '左侧', x: 0, y: 0.5 },
+  right: { label: '右侧', x: 1, y: 0.5 },
+}
+
 export const uid = () => Math.random().toString(36).slice(2, 10)
 
 export function getPageSize(settings) {
@@ -31,23 +39,24 @@ export function getImageSize(url) {
   })
 }
 
-export function fitInBox(element, box, mode = 'contain') {
+export function fitInBox(element, box, mode = 'contain', focus = element.cropFocus || 'center') {
   const scale = mode === 'cover'
     ? Math.max(box.width / element.pixelWidth, box.height / element.pixelHeight)
     : Math.min(box.width / element.pixelWidth, box.height / element.pixelHeight)
   const width = element.pixelWidth * scale
   const height = element.pixelHeight * scale
-  return { x: box.x + (box.width - width) / 2, y: box.y + (box.height - height) / 2, w: width, h: height }
+  const anchor = mode === 'cover' ? CROP_FOCUS_OPTIONS[focus] || CROP_FOCUS_OPTIONS.center : CROP_FOCUS_OPTIONS.center
+  return { x: box.x + (box.width - width) * anchor.x, y: box.y + (box.height - height) * anchor.y, w: width, h: height }
 }
 
-export function fitElement(element, pageSize, margin, mode = 'contain') {
+export function fitElement(element, pageSize, margin, mode = 'contain', focus = element.cropFocus || 'center') {
   if (mode === 'original') {
     const width = element.pixelWidth * 25.4 / 300
     const height = element.pixelHeight * 25.4 / 300
     const maxScale = Math.min(1, (pageSize.width - margin * 2) / width, (pageSize.height - margin * 2) / height)
     return { x: (pageSize.width - width * maxScale) / 2, y: (pageSize.height - height * maxScale) / 2, w: width * maxScale, h: height * maxScale }
   }
-  return fitInBox(element, { x: margin, y: margin, width: pageSize.width - margin * 2, height: pageSize.height - margin * 2 }, mode)
+  return fitInBox(element, { x: margin, y: margin, width: pageSize.width - margin * 2, height: pageSize.height - margin * 2 }, mode, focus)
 }
 
 export function gridElements(elements, pageSize, margin, mode = 'contain') {
@@ -60,7 +69,7 @@ export function gridElements(elements, pageSize, margin, mode = 'contain') {
   return elements.map((element, index) => {
     const column = index % columns
     const row = Math.floor(index / columns)
-    return { ...element, rotation: 0, placement: fitInBox(element, { x: margin + column * (cellWidth + gap), y: margin + row * (cellHeight + gap), width: cellWidth, height: cellHeight }, mode) }
+    return { ...element, rotation: 0, placement: fitInBox(element, { x: margin + column * (cellWidth + gap), y: margin + row * (cellHeight + gap), width: cellWidth, height: cellHeight }, mode, element.cropFocus) }
   })
 }
 
