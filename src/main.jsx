@@ -152,8 +152,9 @@ function App() {
     let mounted = true
     loadProject().then(project => {
       if (!mounted) return
+      const restoredSettings = { ...DEFAULT_SETTINGS, ...(project?.settings || {}) }
+      if (project?.settings) setSettings(restoredSettings)
       if (project?.pages?.length && project.pages.every(page => Array.isArray(page.elements))) {
-        const restoredSettings = { ...DEFAULT_SETTINGS, ...(project.settings || {}) }
         const restoredPages = project.pages.map(page => ({
           ...page,
           pagePreset: PAGE_PRESETS[page.pagePreset] ? page.pagePreset : restoredSettings.pagePreset,
@@ -163,7 +164,6 @@ function App() {
           elements: page.elements.map(element => ({ ...element, cropFocus: element.cropFocus || 'center' })),
         }))
         history.replace(restoredPages)
-        setSettings(restoredSettings)
         setActivePageId(restoredPages[0].id)
       }
       setStorageReady(true)
