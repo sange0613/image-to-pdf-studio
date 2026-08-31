@@ -1,13 +1,24 @@
 export const PAGE_PRESETS = {
-  a4: { label: 'A4', width: 210, height: 297 },
-  letter: { label: 'Letter', width: 215.9, height: 279.4 },
-  square: { label: '方形', width: 210, height: 210 },
+  a3: { label: 'A3 · 297 × 420 mm', width: 297, height: 420, group: 'ISO 纸张' },
+  a4: { label: 'A4 · 210 × 297 mm', width: 210, height: 297, group: 'ISO 纸张' },
+  a5: { label: 'A5 · 148 × 210 mm', width: 148, height: 210, group: 'ISO 纸张' },
+  b4: { label: 'B4 · 250 × 353 mm', width: 250, height: 353, group: 'ISO 纸张' },
+  b5: { label: 'B5 · 176 × 250 mm', width: 176, height: 250, group: 'ISO 纸张' },
+  letter: { label: 'Letter · 216 × 279 mm', width: 215.9, height: 279.4, group: '美制纸张' },
+  legal: { label: 'Legal · 216 × 356 mm', width: 215.9, height: 355.6, group: '美制纸张' },
+  photo4x6: { label: '照片 4 × 6 英寸', width: 101.6, height: 152.4, group: '照片与方形' },
+  photo5x7: { label: '照片 5 × 7 英寸', width: 127, height: 177.8, group: '照片与方形' },
+  square: { label: '方形 · 210 × 210 mm', width: 210, height: 210, group: '照片与方形' },
+  screen16x9: { label: '16:9 / 9:16 · 320 × 180 mm', width: 180, height: 320, group: '屏幕比例' },
+  screen4x3: { label: '4:3 / 3:4 · 280 × 210 mm', width: 210, height: 280, group: '屏幕比例' },
 }
+
+export const PAGE_PRESET_GROUPS = [...new Set(Object.values(PAGE_PRESETS).map(preset => preset.group))]
 
 export const uid = () => Math.random().toString(36).slice(2, 10)
 
 export function getPageSize(settings) {
-  const preset = PAGE_PRESETS[settings.pagePreset]
+  const preset = PAGE_PRESETS[settings.pagePreset] || PAGE_PRESETS.a4
   return settings.landscape ? { width: preset.height, height: preset.width } : { width: preset.width, height: preset.height }
 }
 

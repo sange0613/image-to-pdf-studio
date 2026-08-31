@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import { useHistory } from './hooks/useHistory'
 import {
-  PAGE_PRESETS, calculateDpi, estimateMegabytes, fitElement, getImageSize,
+  PAGE_PRESET_GROUPS, PAGE_PRESETS, calculateDpi, estimateMegabytes, fitElement, getImageSize,
   getPageSize, gridElements, loadProject, saveProject, uid,
 } from './lib/project'
 import './styles.css'
@@ -28,7 +28,7 @@ function PageThumbnail({ page, index, active, onSelect, onRemove, onDrop, onDrag
 }
 
 function EditorCanvas({ page, pageSize, selectedId, onSelect, onPointerDrag, zoom, onDropFiles }) {
-  const canvasWidth = Math.min(650, window.innerWidth * .47) * zoom / 100
+  const canvasWidth = Math.min(740, window.innerWidth * .5) * zoom / 100
   const canvasHeight = canvasWidth * pageSize.height / pageSize.width
   return <section className="editor">
     <div className="ruler top-ruler"><span>0</span><span>50</span><span>100</span><span>150</span><span>200</span><span>mm</span></div>
@@ -52,12 +52,12 @@ function EditorCanvas({ page, pageSize, selectedId, onSelect, onPointerDrag, zoo
   </section>
 }
 
-function Inspector({ settings, setSettings, page, pageLandscape, selected, updateElement, alignElement, layerElement, applyFitMode, applyAllFitMode, changePageOrientation, dpi }) {
+function Inspector({ settings, page, pageLandscape, selected, updateElement, alignElement, layerElement, applyFitMode, applyAllFitMode, changePagePreset, changePageOrientation, dpi }) {
   const dpiTone = dpi >= 300 ? 'good' : dpi >= 150 ? 'medium' : 'low'
   return <aside className="sidebar inspector">
     <h2>页面设置</h2>
     <div className="settings-row">
-      <div><label className="field-label">页面尺寸</label><div className="select-wrap"><select value={settings.pagePreset} onChange={event => setSettings(current => ({ ...current, pagePreset: event.target.value }))}>{Object.entries(PAGE_PRESETS).map(([key, preset]) => <option key={key} value={key}>{preset.label}</option>)}</select><ChevronDown /></div></div>
+      <div><label className="field-label">页面尺寸</label><div className="select-wrap"><select value={settings.pagePreset} onChange={event => changePagePreset(event.target.value)}>{PAGE_PRESET_GROUPS.map(group => <optgroup key={group} label={group}>{Object.entries(PAGE_PRESETS).filter(([, preset]) => preset.group === group).map(([key, preset]) => <option key={key} value={key}>{preset.label}</option>)}</optgroup>)}</select><ChevronDown /></div></div>
       <div><label className="field-label">边距</label><div className="compact-number"><input type="number" min="0" max="40" value={settings.margin} onChange={event => setSettings(current => ({ ...current, margin: Number(event.target.value) }))} /><span>mm</span></div></div>
     </div>
     <div className="section-title page-direction-title"><span>当前页方向</span><small>{page ? '仅修改此页' : '新页面默认'}</small></div>
@@ -114,7 +114,7 @@ function App() {
   const [activePageId, setActivePageId] = useState(null)
   const [selectedId, setSelectedId] = useState(null)
   const [layoutMode, setLayoutMode] = useState('pages')
-  const [zoom, setZoom] = useState(68)
+  const [zoom, setZoom] = useState(88)
   const [draggingPageId, setDraggingPageId] = useState(null)
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
@@ -368,6 +368,23 @@ function App() {
     }))
   }
 
+  function changePagePreset(pagePreset) {
+    if (pagePreset === settings.pagePreset || !PAGE_PRESETS[pagePreset]) return
+    const nextSettings = { ...settings, pagePreset }
+    setSettings(nextSettings)
+    if (pages.length) {
+      history.commit(current => current.map(page => {
+        const nextPageSize = getPageSize({ ...nextSettings, landscape: page.landscape ?? nextSettings.landscape })
+        if (page.elements.length > 1) {
+          return { ...page, elements: gridElements(page.elements, nextPageSize, nextSettings.margin, nextSettings.fitMode) }
+        }
+        return { ...page, elements: page.elements.map(element => ({ ...element, placement: fitElement(element, nextPageSize, nextSettings.margin, nextSettings.fitMode) })) }
+      }))
+    }
+    setNotice(`页面尺寸已切换为 ${PAGE_PRESETS[pagePreset].label.split(' · ')[0]}`)
+    setTimeout(() => setNotice(''), 2200)
+  }
+
   async function exportPdf() {
     if (!pages.length) return
     setBusy(true)
@@ -412,9 +429,9 @@ function App() {
         <div className="thumb-list">{pages.map((page, index) => <PageThumbnail key={page.id} page={page} index={index} active={page.id === activePageId} onSelect={() => { setActivePageId(page.id); setSelectedId(page.elements[0]?.id || null) }} onRemove={() => history.commit(current => current.filter(item => item.id !== page.id))} onDragStart={() => setDraggingPageId(page.id)} onDrop={() => { movePage(pages.findIndex(item => item.id === draggingPageId), index); setDraggingPageId(null) }} />)}{!pages.length ? <button className="empty-import" onClick={() => fileInput.current?.click()}><span className="empty-icon"><ImageIcon /></span><strong>导入你的图片</strong><small>支持 JPG、PNG、WebP<br />可一次选择多张</small></button> : null}</div>
       </aside>
       <EditorCanvas page={activePage} pageSize={pageSize} selectedId={selectedId} onSelect={setSelectedId} onPointerDrag={pointerDrag} zoom={zoom} onDropFiles={event => { event.preventDefault(); if (event.dataTransfer.files.length) importFiles(event.dataTransfer.files) }} />
-      <Inspector settings={settings} setSettings={setSettings} page={activePage} pageLandscape={pageLandscape} selected={selected} updateElement={updateSelected} alignElement={alignElement} layerElement={layerElement} applyFitMode={applyFitMode} applyAllFitMode={applyAllFitMode} changePageOrientation={changePageOrientation} dpi={dpi} />
+      <Inspector settings={settings} page={activePage} pageLandscape={pageLandscape} selected={selected} updateElement={updateSelected} alignElement={alignElement} layerElement={layerElement} applyFitMode={applyFitMode} applyAllFitMode={applyAllFitMode} changePagePreset={changePagePreset} changePageOrientation={changePageOrientation} dpi={dpi} />
     </main>
-    <footer className="statusbar"><div><ImageIcon /><strong>{imageCount}</strong> 张图片 · <strong>{pages.length}</strong> 页 · 约 {estimate} MB</div><div className="pagination"><button disabled={activePageIndex <= 0} onClick={() => setActivePageId(pages[activePageIndex - 1]?.id)}><ArrowUp /></button><span>{pages.length ? activePageIndex + 1 : 0}</span><small>/ {pages.length}</small><button disabled={activePageIndex >= pages.length - 1} onClick={() => setActivePageId(pages[activePageIndex + 1]?.id)}><ArrowDown /></button></div><div className="status-actions"><div className="zoom-control"><button onClick={() => setZoom(Math.max(35, zoom - 10))}><Minus /></button><span>{zoom}%</span><button onClick={() => setZoom(Math.min(110, zoom + 10))}><Plus /></button></div></div></footer>
+    <footer className="statusbar"><div><ImageIcon /><strong>{imageCount}</strong> 张图片 · <strong>{pages.length}</strong> 页 · 约 {estimate} MB</div><div className="pagination"><button disabled={activePageIndex <= 0} onClick={() => setActivePageId(pages[activePageIndex - 1]?.id)}><ArrowUp /></button><span>{pages.length ? activePageIndex + 1 : 0}</span><small>/ {pages.length}</small><button disabled={activePageIndex >= pages.length - 1} onClick={() => setActivePageId(pages[activePageIndex + 1]?.id)}><ArrowDown /></button></div><div className="status-actions"><div className="zoom-control"><button onClick={() => setZoom(Math.max(35, zoom - 10))}><Minus /></button><span>{zoom}%</span><button onClick={() => setZoom(Math.min(140, zoom + 10))}><Plus /></button></div></div></footer>
     {previewOpen ? <PreviewModal pages={pages} settings={settings} estimate={estimate} onClose={() => setPreviewOpen(false)} onExport={exportPdf} onMovePage={movePage} onMoveImage={moveImage} /> : null}
     {notice ? <div className="toast"><Check />{notice}<button onClick={() => setNotice('')}><X /></button></div> : null}
   </div>
