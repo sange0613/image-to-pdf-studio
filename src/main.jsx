@@ -18,7 +18,7 @@ const DEFAULT_SETTINGS = { pagePreset: 'a4', landscape: false, margin: 12, fitMo
 const IMAGE_TYPES = /image\/(jpeg|png|webp)/
 const MIN_ZOOM = 35
 const MAX_ZOOM = 200
-const DEFAULT_ZOOM = 150
+const DEFAULT_ZOOM = 100
 
 function PageThumbnail({ page, index, active, onSelect, onRemove, onDrop, onDragStart }) {
   return <article className={`thumb-row ${active ? 'selected' : ''}`} draggable onDragStart={onDragStart} onDragOver={event => event.preventDefault()} onDrop={onDrop} onClick={onSelect}>
