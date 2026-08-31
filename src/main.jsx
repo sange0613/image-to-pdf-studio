@@ -411,7 +411,7 @@ function App() {
           pdf.addImage(element.dataUrl, format, placement.x, placement.y, placement.w, placement.h, undefined, 'NONE', element.rotation || 0)
         })
       })
-      pdf.save(`原页-${pages.length}页-${imageCount}张.pdf`)
+      pdf.save(`戌無营造-图片转PDF-${pages.length}页-${imageCount}张.pdf`)
       setPreviewOpen(false)
       setNotice('高清 PDF 已导出')
     } catch (error) {
@@ -425,7 +425,7 @@ function App() {
 
   return <div className="app-shell">
     <header className="topbar">
-      <div className="brand"><span className="brand-mark" /><strong>原页</strong><span className="divider" /><span>图片转 PDF</span></div>
+      <div className="brand"><span className="brand-mark" /><strong>戌無营造</strong><span className="divider" /><span>图片转PDF</span></div>
       <div className="header-actions"><span className={`save-state ${saved ? 'saved' : ''}`}><Save />{saved ? '已自动保存' : '正在保存'}</span><button className="icon-button" title="撤销 ⌘Z" disabled={!history.canUndo} onClick={history.undo}><Undo2 /></button><button className="icon-button" title="重做 ⇧⌘Z" disabled={!history.canRedo} onClick={history.redo}><Redo2 /></button><button className="preview-button header-preview-button" disabled={!pages.length} onClick={() => setPreviewOpen(true)}><Eye />导出总览</button><span className="divider" /><button className="help-button" title="快捷键：方向键微调，Shift 加速，Delete 删除"><HelpCircle /> 帮助</button></div>
     </header>
     <main className="workspace">
