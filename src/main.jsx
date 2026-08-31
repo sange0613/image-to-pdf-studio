@@ -16,6 +16,9 @@ import './styles.css'
 
 const DEFAULT_SETTINGS = { pagePreset: 'a4', landscape: false, margin: 12, fitMode: 'contain' }
 const IMAGE_TYPES = /image\/(jpeg|png|webp)/
+const MIN_ZOOM = 35
+const MAX_ZOOM = 200
+const DEFAULT_ZOOM = 150
 
 function PageThumbnail({ page, index, active, onSelect, onRemove, onDrop, onDragStart }) {
   return <article className={`thumb-row ${active ? 'selected' : ''}`} draggable onDragStart={onDragStart} onDragOver={event => event.preventDefault()} onDrop={onDrop} onClick={onSelect}>
@@ -34,9 +37,9 @@ function EditorCanvas({ page, pageSize, selectedId, onSelect, onPointerDrag, zoo
     <div className="ruler top-ruler"><span>0</span><span>50</span><span>100</span><span>150</span><span>200</span><span>mm</span></div>
     <div className="ruler side-ruler"><span>0</span><span>50</span><span>100</span><span>150</span><span>200</span><span>250</span></div>
     <div className="zoom-control editor-zoom-control" aria-label="预览大小">
-      <button aria-label="缩小预览" onClick={() => onZoomChange(Math.max(35, zoom - 10))}><Minus /></button>
+      <button aria-label="缩小预览" onClick={() => onZoomChange(Math.max(MIN_ZOOM, zoom - 10))}><Minus /></button>
       <span>{zoom}%</span>
-      <button aria-label="放大预览" onClick={() => onZoomChange(Math.min(140, zoom + 10))}><Plus /></button>
+      <button aria-label="放大预览" onClick={() => onZoomChange(Math.min(MAX_ZOOM, zoom + 10))}><Plus /></button>
     </div>
     <div className="canvas-wrap" onDragOver={event => event.preventDefault()} onDrop={onDropFiles}>
       <div className="page-canvas" style={{ width: canvasWidth, height: canvasHeight }} onPointerDown={() => onSelect(null)}>
@@ -119,7 +122,7 @@ function App() {
   const [activePageId, setActivePageId] = useState(null)
   const [selectedId, setSelectedId] = useState(null)
   const [layoutMode, setLayoutMode] = useState('pages')
-  const [zoom, setZoom] = useState(88)
+  const [zoom, setZoom] = useState(DEFAULT_ZOOM)
   const [draggingPageId, setDraggingPageId] = useState(null)
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
